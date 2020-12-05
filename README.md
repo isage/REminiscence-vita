@@ -2,6 +2,8 @@
 
 REminiscence port for Vita.
 
+![Screenshot](https://raw.githubusercontent.com/isage/REminiscence-vita/master/screenshot.png)
+
 # Requirements
 
 A Vita system capable of running homebrew.
