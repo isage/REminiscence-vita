@@ -21,8 +21,13 @@ static const uint32_t kPixelFormat = SDL_PIXELFORMAT_RGB888;
 ScalerParameters ScalerParameters::defaults() {
 	ScalerParameters params;
 	params.type = kScalerTypeInternal;
+#ifdef PSVITA
+	sprintf(params.name, "scale");
+	params.factor = 2;
+#else
 	params.name[0] = 0;
 	params.factor = _internalScaler.factorMin + (_internalScaler.factorMax - _internalScaler.factorMin) / 2;
+#endif
 	return params;
 }
 
@@ -127,6 +132,7 @@ void SystemStub_SDL::init(const char *title, int w, int h, bool fullscreen, int 
 	_joystick = 0;
 	_controller = 0;
 	if (SDL_NumJoysticks() > 0) {
+#ifndef PSVITA
 		SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt");
 		if (SDL_IsGameController(kJoystickIndex)) {
 			_controller = SDL_GameControllerOpen(kJoystickIndex);
@@ -134,6 +140,9 @@ void SystemStub_SDL::init(const char *title, int w, int h, bool fullscreen, int 
 		if (!_controller) {
 			_joystick = SDL_JoystickOpen(kJoystickIndex);
 		}
+#else
+		_joystick = SDL_JoystickOpen(kJoystickIndex);
+#endif
 	}
 	_screenshot = 1;
 }
@@ -577,6 +586,8 @@ void SystemStub_SDL::processEvent(const SDL_Event &ev, bool &paused) {
 			break;
 		}
 		break;
+#ifndef PSVITA
+
 	case SDL_JOYHATMOTION:
 		if (_joystick) {
 			_pi.dirMask = 0;
@@ -616,6 +627,7 @@ void SystemStub_SDL::processEvent(const SDL_Event &ev, bool &paused) {
 			}
 		}
 		break;
+#endif
 	case SDL_JOYBUTTONDOWN:
 	case SDL_JOYBUTTONUP:
 		if (_joystick) {
@@ -633,6 +645,39 @@ void SystemStub_SDL::processEvent(const SDL_Event &ev, bool &paused) {
 			case 3:
 				_pi.backspace = pressed;
 				break;
+#ifdef PSVITA
+			case 6:
+				if (pressed) {
+					_pi.dirMask |= PlayerInput::DIR_DOWN;
+				} else {
+					_pi.dirMask &= ~PlayerInput::DIR_DOWN;
+				}
+				break;
+			case 7:
+				if (pressed) {
+					_pi.dirMask |= PlayerInput::DIR_LEFT;
+				} else {
+					_pi.dirMask &= ~PlayerInput::DIR_LEFT;
+				}
+				break;
+			case 8:
+				if (pressed) {
+					_pi.dirMask |= PlayerInput::DIR_UP;
+				} else {
+					_pi.dirMask &= ~PlayerInput::DIR_UP;
+				}
+				break;
+			case 9:
+				if (pressed) {
+					_pi.dirMask |= PlayerInput::DIR_RIGHT;
+				} else {
+					_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
+				}
+				break;
+			case 11:
+				_pi.escape = pressed;
+				break;
+#endif
 			}
 		}
 		break;
@@ -954,7 +999,15 @@ void SystemStub_SDL::prepareGraphics() {
 	if (_widescreenMode != kWidescreenNone) {
 		windowW = windowH * 16 / 9;
 	}
-	_window = SDL_CreateWindow(_caption, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowW, windowH, flags);
+#ifdef PSVITA
+	int real_windowW = 960;
+	int real_windowH = 544;
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0"); // nearest pixel sampling
+#else
+	int real_windowW = windowW;
+	int real_windowH = windowH;
+#endif
+	_window = SDL_CreateWindow(_caption, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, real_windowW, real_windowH, flags);
 	SDL_Surface *icon = SDL_LoadBMP(kIconBmp);
 	if (icon) {
 		SDL_SetWindowIcon(_window, icon);

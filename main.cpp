@@ -15,6 +15,10 @@
 #include "systemstub.h"
 #include "util.h"
 
+#ifdef PSVITA
+    #include <psp2/kernel/iofilemgr.h>
+#endif
+
 static const char *USAGE =
 	"REminiscence - Flashback Interpreter\n"
 	"Usage: %s [OPTIONS]...\n"
@@ -121,7 +125,11 @@ static void initOptions() {
 		{ "play_gamesaved_sound", &g_options.play_gamesaved_sound },
 		{ 0, 0 }
 	};
+#ifdef PSVITA
+	static const char *filename = "ux0:/data/RMSC00001/rs.cfg";
+#else
 	static const char *filename = "rs.cfg";
+#endif
 	FILE *fp = fopen(filename, "rb");
 	if (fp) {
 		char buf[256];
@@ -185,12 +193,30 @@ static WidescreenMode parseWidescreen(const char *mode) {
 }
 
 int main(int argc, char *argv[]) {
+#ifdef PSVITA
+	sceIoMkdir("ux0:/data", 0755);
+	sceIoMkdir("ux0:/data/RMSC00001", 0755);
+	sceIoMkdir("ux0:/data/RMSC00001/DATA", 0755);
+	sceIoMkdir("ux0:/data/RMSC00001/SAVE", 0755);
+
+	const char *dataPath = "ux0:/data/RMSC00001/DATA";
+	const char *savePath = "ux0:/data/RMSC00001/SAVE";
+#else
 	const char *dataPath = "DATA";
 	const char *savePath = ".";
+#endif
 	int levelNum = 0;
+#ifdef PSVITA
+	bool fullscreen = true;
+#else
 	bool fullscreen = false;
+#endif
 	bool autoSave = false;
+#ifdef PSVITA
+	WidescreenMode widescreen = kWidescreenAdjacentRooms;//kWidescreenBlur;
+#else
 	WidescreenMode widescreen = kWidescreenNone;
+#endif
 	ScalerParameters scalerParameters = ScalerParameters::defaults();
 	int forcedLanguage = -1;
 	if (argc == 2) {

@@ -1,0 +1,59 @@
+VERSION = 0.4.6
+TARGET = REminiscence
+TITLE_ID = RMSC00001
+
+
+SRCS = collision.cpp cpc_player.cpp cutscene.cpp decode_mac.cpp file.cpp fs.cpp game.cpp graphics.cpp main.cpp \
+	menu.cpp mixer.cpp mod_player.cpp ogg_player.cpp piege.cpp protection.cpp resource.cpp resource_aba.cpp \
+	resource_mac.cpp scaler.cpp screenshot.cpp seq_player.cpp \
+	sfx_player.cpp staticres.cpp systemstub_sdl.cpp unpack.cpp util.cpp video.cpp
+
+OBJS = $(SRCS:.cpp=.o)
+
+PREFIX   = arm-dolce-eabi
+
+INCDIR =-I/include -I$(DOLCESDK)/$(PREFIX)/include/SDL2
+
+
+LIBS +=  -lSDL2 -lpib \
+             -lSceAppMgr_stub -lSceGxm_stub -lSceAppMgrUser_stub -lSceSharedFb_stub -lSceDisplay_stub -lSceDisplayUser_stub -lSceCtrl_stub -lSceAudio_stub -lSceMotion_stub -lSceHid_stub -lSceTouch_stub \
+                 -lSceSysmodule_stub -lScePgf_stub -lSceCommonDialog_stub -lSceMotion_stub \
+                 -lScePower_stub -lvorbisidec -logg -lmodplug -lpng -ljpeg -lz -lm -lc
+
+CC       = $(PREFIX)-gcc
+CXX      = $(PREFIX)-g++
+CFLAGS   =  $(INCDIR) -fpermissive  -Wl,-q -Wall -O3  -Wno-unused-variable -Wno-unused-but-set-variable -DPSVITA -DBYPASS_PROTECTION 
+CXXFLAGS = $(CFLAGS)  -std=c++11 -DUSE_MODPLUG -DUSE_TREMOR -DUSE_ZLIB
+ASFLAGS  = $(CFLAGS)
+
+
+all: $(TARGET)-$(VERSION).vpk
+
+%.vpk: eboot.bin
+	dolce-mksfoex  -s TITLE_ID=$(TITLE_ID) "$(TARGET)" param.sfo
+	dolce-make-pkg -f vpk -t app  -a eboot.bin eboot.bin -a param.sfo sce_sys/param.sfo \
+		--add pkg/sce_sys/icon0.png sce_sys/icon0.png \
+		--add pkg/sce_sys/livearea/contents/bg.png sce_sys/livearea/contents/bg.png \
+		--add pkg/sce_sys/livearea/contents/startup.png sce_sys/livearea/contents/startup.png \
+		--add pkg/sce_sys/livearea/contents/template.xml sce_sys/livearea/contents/template.xml \
+		$(TARGET)-$(VERSION).vpk
+
+eboot.bin: $(TARGET).velf
+	dolce-make-fself  $< $@
+
+%.velf: %.elf
+	dolce-elf-create $< $@
+
+$(TARGET).elf: $(OBJS)
+	$(CXX) $(CXXFLAGS) $^ $(LIBS) -o $@
+
+%.o: %.png
+	$(PREFIX)-ld -r -b binary -o $@ $^
+%.o: %.txt
+	$(PREFIX)-ld -r -b binary -o $@ $^
+
+%.o : %.cpp
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
+
+clean:
+	@rm -rf *.velf *.elf *.vpk eboot.bin param.sfo *.o
